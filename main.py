@@ -1,10 +1,14 @@
+#!/usr/bin/env python3
 import numpy as np
 import pickle
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm  
+import os
+from plot import plot_results, ensure_results_dir
+import math
+from train_test_split_only import knn_classifier_train_test_split_only
 
 def l1_distance(x1: np.ndarray, x2: np.ndarray) -> float:
     return np.sum(np.abs(x1 - x2))
@@ -42,113 +46,22 @@ def load_data():
     test_data, test_labels = load_cifar10_batch('cifar-10-batches-py/test_batch')
     print("Loaded test data")
     
-    return train_data, train_labels, test_data, test_labels
+    return train_data[:500], train_labels[:500], test_data[:100], test_labels[:100]
 
-def predict_with_progress(knn, test_data, batch_size=100):
-    # predict with progress, batch size is 100, tqdm is used to show the progress
-    n_samples = len(test_data)
-    predictions = []
-    
-    for i in tqdm(range(0, n_samples, batch_size), desc="  Predicting", ncols=80):
-        batch_end = min(i + batch_size, n_samples)
-        batch_predictions = knn.predict(test_data[i:batch_end])
-        predictions.extend(batch_predictions)
-    
-    return np.array(predictions)
-
-def knn_classifier(train_data, train_labels, test_data, test_labels):
-    results = []
-    for k in [1, 3, 5, 7, 9]:
-        for distance_metric in [1, 2]:
-            knn = KNeighborsClassifier(n_neighbors=k, p=distance_metric)
-            knn.fit(train_data, train_labels)
-            
-            print("--------------------------------")
-            print("knn(k={}, distance_metric={}) predicting...".format(k, distance_metric))
-            result = predict_with_progress(knn, test_data, batch_size=100)
-            
-            # calculate accuracy
-            test_acc = accuracy_score(test_labels, result)
-            precision = precision_score(test_labels, result, average='macro')
-            recall = recall_score(test_labels, result, average='macro')
-            f1 = f1_score(test_labels, result, average='macro')
-            
-            results.append({
-                'k': k,
-                'distance_metric': distance_metric,
-                'test_acc': test_acc,
-                'precision': precision,
-                'recall': recall,
-                'f1': f1
-            })
-            print("test_acc: {}, precision: {}, recall: {}, f1: {}".format(test_acc, precision, recall, f1))
-            print("--------------------------------")
-            
-    return results
-
-def plot_results(results):
-    # plot test acc, precision, recall, f1 with on k values.
-    # plot 2 graphs for each distance metric.
-    
-    # Separate results by distance metric
-    l1_results = [r for r in results if r['distance_metric'] == 1]
-    l2_results = [r for r in results if r['distance_metric'] == 2]
-    
-    # Extract data for L1 distance (Manhattan)
-    l1_k = [r['k'] for r in l1_results]
-    l1_test_acc = [r['test_acc'] for r in l1_results]
-    l1_precision = [r['precision'] for r in l1_results]
-    l1_recall = [r['recall'] for r in l1_results]
-    l1_f1 = [r['f1'] for r in l1_results]
-    
-    # Extract data for L2 distance (Euclidean)
-    l2_k = [r['k'] for r in l2_results]
-    l2_test_acc = [r['test_acc'] for r in l2_results]
-    l2_precision = [r['precision'] for r in l2_results]
-    l2_recall = [r['recall'] for r in l2_results]
-    l2_f1 = [r['f1'] for r in l2_results]
-    
-    # Plot L1 distance results
-    plt.figure(figsize=(12, 6))
-    plt.plot(l1_k, l1_test_acc, marker='o', label='Test Accuracy')
-    plt.plot(l1_k, l1_precision, marker='s', label='Precision')
-    plt.plot(l1_k, l1_recall, marker='^', label='Recall')
-    plt.plot(l1_k, l1_f1, marker='d', label='F1 Score')
-    plt.xlabel('k (Number of Neighbors)')
-    plt.ylabel('Score')
-    plt.title('KNN Performance with L1 Distance (Manhattan)')
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.xticks(l1_k)
-    plt.ylim([0.2, 0.6])
-    plt.tight_layout()
-    plt.savefig('results/knn_l1_distance.png', dpi=300, bbox_inches='tight')
-    print("Saved: results/knn_l1_distance.png")
-    plt.close()
-    
-    # Plot L2 distance results
-    plt.figure(figsize=(12, 6))
-    plt.plot(l2_k, l2_test_acc, marker='o', label='Test Accuracy')
-    plt.plot(l2_k, l2_precision, marker='s', label='Precision')
-    plt.plot(l2_k, l2_recall, marker='^', label='Recall')
-    plt.plot(l2_k, l2_f1, marker='d', label='F1 Score')
-    plt.xlabel('k (Number of Neighbors)')
-    plt.ylabel('Score')
-    plt.title('KNN Performance with L2 Distance (Euclidean)')
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.xticks(l2_k)
-    plt.ylim([0.2, 0.6])
-    plt.tight_layout()
-    plt.savefig('results/knn_l2_distance.png', dpi=300, bbox_inches='tight')
-    print("Saved: results/knn_l2_distance.png")
-    plt.close()
-
+def save_results_to_txt(results, filepath='results/knn_results.txt'):
+    ensure_results_dir(os.path.dirname(filepath))
+    lines = ['k,distance_metric,test_acc,precision,recall,f1']
+    for r in sorted(results, key=lambda r: (r['distance_metric'], r['k'])):
+        lines.append(f"{r['k']},{r['distance_metric']},{r['test_acc']:.4f},{r['precision']:.4f},{r['recall']:.4f},{r['f1']:.4f}")
+    with open(filepath, 'w') as f:
+        f.write("\n".join(lines))
+    print(f"Saved: {filepath}")
 
 def main():
     train_data, train_labels, test_data, test_labels = load_data()
-    results = knn_classifier(train_data, train_labels, test_data, test_labels)
-    plot_results(results)
+    results = knn_classifier_train_test_split_only(train_data, train_labels, test_data, test_labels)
+    save_results_to_txt(results, 'results/train_test_split_only/knn_results.txt')
+    plot_results(results, 'results/train_test_split_only')
 
 if __name__ == '__main__':
     main()
