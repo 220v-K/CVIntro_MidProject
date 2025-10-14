@@ -9,3 +9,9 @@ k,distance_metric,test_acc,precision,recall,f1
 5,2,0.2580,0.3557,0.2682,0.2414
 7,2,0.2480,0.3537,0.2548,0.2269
 9,2,0.2640,0.3829,0.2706,0.2373
+
+Best validation performance:
+k=7, distance_metric=1, validation_acc=0.2840
+
+Test results with best k and distance_metric:
+Test Accuracy: 0.2870, Precision: 0.3585, Recall: 0.2832, F1: 0.2679
