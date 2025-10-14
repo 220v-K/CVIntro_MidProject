@@ -1,0 +1,4 @@
+.venv/
+cifar-10*/
+.DS_Store*
+.DS_Store/*
