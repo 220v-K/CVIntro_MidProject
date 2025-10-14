@@ -4,6 +4,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import matplotlib.pyplot as plt
 import pandas as pd
+from tqdm import tqdm  
 
 def l1_distance(x1: np.ndarray, x2: np.ndarray) -> float:
     return np.sum(np.abs(x1 - x2))
@@ -43,13 +44,28 @@ def load_data():
     
     return train_data, train_labels, test_data, test_labels
 
+def predict_with_progress(knn, test_data, batch_size=100):
+    # predict with progress, batch size is 100, tqdm is used to show the progress
+    n_samples = len(test_data)
+    predictions = []
+    
+    for i in tqdm(range(0, n_samples, batch_size), desc="  Predicting", ncols=80):
+        batch_end = min(i + batch_size, n_samples)
+        batch_predictions = knn.predict(test_data[i:batch_end])
+        predictions.extend(batch_predictions)
+    
+    return np.array(predictions)
+
 def knn_classifier(train_data, train_labels, test_data, test_labels):
     results = []
     for k in [1, 3, 5, 7, 9]:
         for distance_metric in [1, 2]:
             knn = KNeighborsClassifier(n_neighbors=k, p=distance_metric)
             knn.fit(train_data, train_labels)
-            result = knn.predict(test_data)
+            
+            print("--------------------------------")
+            print("knn(k={}, distance_metric={}) predicting...".format(k, distance_metric))
+            result = predict_with_progress(knn, test_data, batch_size=100)
             
             # calculate accuracy
             test_acc = accuracy_score(test_labels, result)
@@ -65,8 +81,6 @@ def knn_classifier(train_data, train_labels, test_data, test_labels):
                 'recall': recall,
                 'f1': f1
             })
-            print("--------------------------------")
-            print("knn(k={}, distance_metric={}) result:".format(k, distance_metric))
             print("test_acc: {}, precision: {}, recall: {}, f1: {}".format(test_acc, precision, recall, f1))
             print("--------------------------------")
             
@@ -106,7 +120,7 @@ def plot_results(results):
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.xticks(l1_k)
-    plt.ylim([0, 1])
+    plt.ylim([0.2, 0.6])
     plt.tight_layout()
     plt.savefig('results/knn_l1_distance.png', dpi=300, bbox_inches='tight')
     print("Saved: results/knn_l1_distance.png")
@@ -124,7 +138,7 @@ def plot_results(results):
     plt.legend()
     plt.grid(True, alpha=0.3)
     plt.xticks(l2_k)
-    plt.ylim([0, 1])
+    plt.ylim([0.2, 0.6])
     plt.tight_layout()
     plt.savefig('results/knn_l2_distance.png', dpi=300, bbox_inches='tight')
     print("Saved: results/knn_l2_distance.png")
