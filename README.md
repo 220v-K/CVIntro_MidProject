@@ -66,4 +66,4 @@ CVIntro_MidProject/
   - `knn_l1_distance.png`, `knn_l2_distance.png`: Performance curves by distance metric.
 - Running the same experiment name multiple times overwrites existing files; back up the `results` directory if you need to keep earlier runs.
 
-This README was written with GPT-5-Codex.
+This README was written with GPT-5-Codex. Code is hand-written.
